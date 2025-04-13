@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quiz</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f7f9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #quiz {
+      width: 100%;
+      max-width: 700px;
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    #quiz div {
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    label {
+      display: block;
+      margin: 5px 0;
+      font-size: 16px;
+    }
+
+    strong {
+      font-size: 18px;
+      color: #333;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:disabled {
+      background-color: #9e9e9e;
+      cursor: not-allowed;
+    }
+
+    #score {
+      font-size: 20px;
+      color: #2c3e50;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    #loading {
+      font-size: 22px;
+      color: #555;
+      text-align: center;
+      margin-top: 50px;
+    }
+
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #4CAF50;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+
+    .correct-answer {
+      color: #1e8449;
+      font-style: italic;
+      margin-top: 5px;
+      display: none;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    Loading quiz...
+  </div>
+
+  <div id="quiz"></div>
+  <div id="score"></div>
+
+  <script>
+    const config = JSON.parse(localStorage.getItem("quizConfig"));
+    const answers = {};
+    const userAnswers = {};
+    let totalQuestions = 0;
+
+    function updateSubmitButtonState() {
+      const submitBtn = document.getElementById("submitBtn");
+      const allAnswered = Object.keys(answers).every(qId => {
+        return document.querySelector(`input[name="${qId}"]:checked`);
+      });
+      submitBtn.disabled = !allAnswered;
+    }
+
+    fetch("http://127.0.0.1:5000/generate_quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config)
+    })
+    .then(res => res.json())
+    .then(data => {
+      const quiz = data.quiz;
+      const questions = quiz.trim().split(/\n(?=\d+\.)/);
+      const quizDiv = document.getElementById("quiz");
+
+      questions.forEach((block, index) => {
+        const lines = block.trim().split("\n").map(l => l.trim()).filter(l => l);
+        if (lines.length < 6) return;
+
+        const qId = (index + 1).toString();
+        const questionText = lines[0];
+        const options = lines.slice(1, 5);
+        if (options.length !== 4) return;
+
+        const correctLine = lines.find(line => line.startsWith("Answer:"));
+        const correct = correctLine?.split(":")[1]?.trim();
+        if (!correct) return;
+
+        answers[qId] = correct;
+        totalQuestions++;
+
+        const container = document.createElement("div");
+        container.innerHTML = `<p><strong>${questionText}</strong></p>`;
+
+        options.forEach(opt => {
+          const inputId = `${qId}_${opt[0]}`;
+          const optElem = document.createElement("label");
+          optElem.htmlFor = inputId;
+          optElem.innerHTML = `
+            <input type="radio" id="${inputId}" name="${qId}" value="${opt[0]}"> ${opt}
+          `;
+          container.appendChild(optElem);
+        });
+
+        const correctAnswerElem = document.createElement("div");
+        correctAnswerElem.classList.add("correct-answer");
+        correctAnswerElem.id = `correct-${qId}`;
+        correctAnswerElem.textContent = `Correct Answer: ${correct}`;
+        container.appendChild(correctAnswerElem);
+
+        quizDiv.appendChild(container);
+      });
+
+      // Add submit button
+      const submitBtn = document.createElement("button");
+      submitBtn.textContent = "Submit Quiz";
+      submitBtn.id = "submitBtn";
+      submitBtn.disabled = true;
+      submitBtn.onclick = () => {
+        Object.keys(answers).forEach(q => {
+          const selected = document.querySelector(`input[name="${q}"]:checked`);
+          if (selected) userAnswers[q] = selected.value;
+        });
+
+        fetch("http://127.0.0.1:5000/submit_quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            answers: userAnswers,
+            correct_answers: answers
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("score").textContent = `Your Score: ${data.score} / ${data.total}`;
+
+          // Show correct answers
+          Object.keys(answers).forEach(q => {
+            const correctElem = document.getElementById(`correct-${q}`);
+            if (correctElem) correctElem.style.display = "block";
+          });
+
+          // Disable submit to prevent resubmission
+          submitBtn.disabled = true;
+        });
+      };
+
+      quizDiv.appendChild(submitBtn);
+
+      // Enable button when all answered
+      document.querySelectorAll("input[type=radio]").forEach(input => {
+        input.addEventListener("change", updateSubmitButtonState);
+      });
+
+      // Show quiz
+      document.getElementById("loading").style.display = "none";
+      quizDiv.style.display = "block";
+    })
+    .catch(err => {
+      console.error("Error loading quiz:", err);
+      document.getElementById("loading").textContent = "Error loading quiz.";
+    });
+  </script>
+</body>
+</html>

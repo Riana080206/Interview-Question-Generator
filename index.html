@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Quiz</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f7f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    form {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    select,
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <form id="quizForm">
+    <h2>Generate Your Technical Quiz</h2>
+
+    <label for="role">Role:</label>
+    <select id="role" required>
+      <option value="">-- Select Role --</option>
+      <option value="Frontend Developer">Frontend Developer</option>
+      <option value="Backend Developer">Backend Developer</option>
+      <option value="Full Stack Developer">Full Stack Developer</option>
+      <option value="DevOps Engineer">DevOps Engineer</option>
+      <option value="Data Scientist">Data Scientist</option>
+    </select>
+
+    <label for="level">Level:</label>
+    <select id="level" required>
+      <option value="">-- Select Level --</option>
+      <option value="Junior">Junior</option>
+      <option value="Mid">Mid</option>
+      <option value="Senior">Senior</option>
+    </select>
+
+    <label for="tech">Tech Stack:</label>
+    <input type="text" id="tech" required placeholder="e.g. React, Python, Docker">
+
+    <button type="submit">Start Quiz</button>
+  </form>
+
+  <script>
+    document.getElementById("quizForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      localStorage.setItem("quizConfig", JSON.stringify({
+        role: document.getElementById("role").value,
+        level: document.getElementById("level").value,
+        tech: document.getElementById("tech").value,
+        count: 10  // fixed number of questions
+      }));
+      window.location.href = "quiz.html";
+    });
+  </script>
+</body>
+</html>
